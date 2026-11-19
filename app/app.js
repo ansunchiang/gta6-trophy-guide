@@ -5,7 +5,7 @@
   const stages = { window: "Before the Chapter 1 break", story: "During the story", completion: "100% completion", cleanup: "Free-roam cleanup", platinum: "Platinum" };
   const byId = new Map(trophies.map(trophy => [trophy.id, trophy]));
   const $ = id => document.getElementById(id);
-  const view = { kind: "all", selected: null, query: "", unearned: false, roadmap: false, mobileGuide: false };
+  const view = { kind: "all", grade: "all", selected: null, query: "", unearned: false, roadmap: false, mobileGuide: false };
   const mobile = matchMedia("(max-width: 760px)");
   let state = progressStore.read();
   let messageTimer;
@@ -49,7 +49,9 @@
   }
 
   function trophyDescription(trophy) {
-    return isMasked(trophy) ? "Earn this trophy to reveal its details." : trophy.description;
+    if (!isMasked(trophy)) return trophy.description;
+    const chapter = trophies.filter(item => item.chapter === trophy.chapter).sort((a, b) => a.order - b.order);
+    return "Chapter " + trophy.chapter + " · Milestone " + (chapter.indexOf(trophy) + 1) + " of " + chapter.length;
   }
 
   function inKind(trophy, kind) {
@@ -61,7 +63,7 @@
   function matchesSearch(trophy) {
     const words = view.query.toLowerCase().trim().split(/\s+/).filter(Boolean);
     const fields = [trophyName(trophy), trophyDescription(trophy), trophy.grade, labels[trophy.kind]];
-    if (!isMasked(trophy)) fields.push(trophy.guide);
+    if (!isMasked(trophy)) fields.push(trophy.guide, trophy.extra ?? "");
     const text = fields.join(" ").toLowerCase();
     return words.every(word => text.includes(word));
   }
@@ -75,7 +77,7 @@
   }
 
   function riskBadge(trophy) {
-    const labels = { "potentially missable": "Potentially missable", "time-sensitive strand": "Time-sensitive" };
+    const labels = { "potentially missable": "Potentially missable", "time-sensitive strand": "Time-sensitive", unconfirmed: "Trigger unconfirmed" };
     return element("span", "risk", "△ " + labels[trophy.risk]);
   }
 
@@ -111,11 +113,14 @@
       view.selected = byId.has(id) ? id : null;
       view.query = "";
       view.unearned = false;
+      view.grade = "all";
       $("search").value = "";
       $("unearned").checked = false;
+      $("grade").value = "all";
     }
-    view.mobileGuide = false;
+    view.mobileGuide = !view.roadmap && byId.has(view.selected) && fragment.includes("t=");
     render();
+    if (fragment !== "content") window.scrollTo(0, 0);
   }
 
   function openTrophy(trophy) {
@@ -147,7 +152,7 @@
     const name = element("span", "trophy-name", trophyName(trophy));
     const description = element("span", "trophy-description", trophyDescription(trophy));
     text.append(name, description);
-    if (trophy.missable) text.append(riskBadge(trophy));
+    if (trophy.risk) text.append(riskBadge(trophy));
     open.append(text, gradeBadge(trophy.grade), element("span", "chevron", "›"));
     row.append(check, open);
     return row;
@@ -171,7 +176,7 @@
       $("open-" + trophy.id).focus();
     });
     panel.append(close, heading, title, element("p", "official", trophyDescription(trophy)));
-    if (trophy.missable) panel.append(riskBadge(trophy));
+    if (trophy.risk) panel.append(riskBadge(trophy));
     const details = element("div", "guide-content");
     if (masked) {
       details.append(element("p", null, "Story spoiler protection is on. Mark the trophy earned once it appears on your PS5 to reveal its guide."));
@@ -212,15 +217,22 @@
 
   function renderTracker() {
     const filtered = trophies.filter(trophy =>
-      inKind(trophy, view.kind) && (!view.unearned || !state.earned.has(trophy.id)) && matchesSearch(trophy)
+      inKind(trophy, view.kind) && (view.grade === "all" || trophy.grade === view.grade) &&
+      (!view.unearned || !state.earned.has(trophy.id)) && matchesSearch(trophy)
     );
+    if (view.kind === "story") filtered.sort((a, b) => a.order - b.order);
+    if (view.kind === "missable") filtered.sort((a, b) => Number(b.stage === "window") - Number(a.stage === "window"));
     if (!filtered.some(trophy => trophy.id === view.selected)) {
       view.selected = filtered[0]?.id;
       view.mobileGuide = false;
     }
     renderFilters();
+    $("content").classList.toggle("compact-hero", ["story", "missable"].includes(view.kind));
     $("result-count").textContent = filtered.length + " of " + trophies.length + " trophies";
     $("trophy-list").replaceChildren(...filtered.map(trophyRow));
+    if (view.kind === "missable" && filtered.length) {
+      $("trophy-list").append(element("p", "risk-note", "Take the balcony invitation in Chapter 1 and prioritize Yago’s race when it appears in Chapter 3. Both are time-sensitive. Their effect on the platinum is still being verified."));
+    }
     if (!filtered.length) {
       const text = view.kind === "online" ? "The PS5 base-game list has no online trophies." : "No trophies match your filters.";
       $("trophy-list").append(element("p", "empty", text));
@@ -240,34 +252,68 @@
     const index = element("span", "route-number", number);
     const body = element("div", "route-body");
     body.append(element("h3", null, title), element("p", null, text));
+    const resources = element("div", "route-resources");
     if (links.length) {
       const group = element("div", "route-links");
       group.append(...links.map(guideLink));
-      body.append(group);
+      resources.append(group);
     }
     if (sources.length) {
       const group = element("div", "sources");
       group.append(...sources.map(sourceLink));
-      body.append(group);
+      resources.append(group);
     }
+    if (resources.childElementCount) body.append(resources);
     card.append(index, body);
     return card;
   }
 
+  function completionDetails() {
+    const details = element("details", "completion-details");
+    details.append(element("summary", null, "Full in-game 100% requirements"));
+    const groups = element("div", "completion-groups");
+    const checklist = [
+      ["Story and jobs", [
+        "Finish the story and any 100 optional tasks", "39 gang operations, 22 bank jobs and 7 payday loans",
+        "34 of 35 smash-and-grabs, 50 of 91 stickups and all 8 vaults",
+        "Fence $100,000 in narcotics, $100,000 in jewelry, $250,000 in marked bills and $200,000 in vehicles"
+      ]],
+      ["Exploration", [
+        "5 Kenton treasure sets and 33 underwater discoveries", "15 card sets, 100 WAiNK scans and 30 books, magazines or comics",
+        "15 meditations, 100 cocaine flamingos, 2 playlists and 70 styles",
+        "Scan 200 base vehicle models, find 50 standard weapons and study 100 animals"
+      ]],
+      ["Activities", [
+        "30 race wins, 10 race-challenge golds and 42 range golds", "Play 4 video games and 2 mini golf locations",
+        "Beat 5 pool opponents, score 90 basketball hoops and finish 42 drone trials",
+        "300 stunts, 70 challenges and all 15 of Bret’s Target Decks"
+      ]]
+    ];
+    for (const [title, entries] of checklist) {
+      const group = element("div");
+      const items = element("ul");
+      items.append(...entries.map(entry => element("li", null, entry)));
+      group.append(element("h4", null, title), items);
+      groups.append(group);
+    }
+    details.append(groups);
+    return details;
+  }
+
   function renderRoadmap() {
-    const road = $("roadmap");
+    const road = $("roadmap-view");
     const intro = element("div", "section-heading road-heading");
     const heading = element("div");
-    heading.append(element("h2", null, "Platinum roadmap"), element("p", null, "Start with the Chapter 1 window, then work through story and free roam."));
+    heading.append(element("h1", null, "Platinum roadmap"), element("p", null, "Start with the Chapter 1 window, then work through story and free roam."));
     intro.append(heading);
     const cards = element("div", "route-grid");
-    const story = routeCard("02", "Follow the story", "Keep a rotating manual save at chapter breaks. Scan new base vehicles and study animals as you go.", [], ["missions"]);
+    const story = routeCard("02", "Follow the story", "Keep chapter saves. Scan base vehicles and study animals along the way. Take Yago’s timed race when offered in Chapter 3.", [], ["missions"]);
     const chapters = element("div", "chapter-grid");
     for (let chapter = 1; chapter <= 5; chapter++) {
       const milestones = trophies.filter(trophy => trophy.chapter === chapter).sort((a, b) => a.order - b.order);
       const group = element("details", "chapter");
-      group.open = !state.hideSpoilers;
-      group.append(element("summary", null, "Chapter " + chapter + " · " + milestones.length));
+      group.open = !state.hideSpoilers || milestones.some(trophy => state.earned.has(trophy.id));
+      group.append(element("summary", null, "Chapter " + chapter));
       for (const trophy of milestones) {
         const item = element("div", "chapter-trophy");
         item.append(guideLink(trophy.id), element("small", null, trophyDescription(trophy)));
@@ -276,18 +322,34 @@
       chapters.append(group);
     }
     story.querySelector(".route-body").append(chapters);
+    const completion = routeCard("03", "Complete the in-game 100%", "After the story, open Progress › Stats › 100% Completion. Earlier progress carries forward.", [14], ["completion"]);
+    const quotas = element("ul", "quotas");
+    const targets = [
+      ["300", "stunts", 15], ["15", "card sets", 30], ["100", "WAiNK scans", 31],
+      ["42", "range golds", 17], ["70", "challenges", 32], ["30", "race wins", 19],
+      ["42", "drone trials", 18], ["8", "bank vaults", 40]
+    ];
+    for (const [count, label, id] of targets) {
+      const cell = element("li");
+      const link = guideLink(id);
+      link.replaceChildren(element("strong", null, count), label);
+      cell.append(link);
+      quotas.append(cell);
+    }
+    completion.querySelector(".route-body").append(quotas, completionDetails());
     cards.append(
-      routeCard("01", "Before leaving Chapter 1", "After Down to Earth, visit Jason’s house in the morning and accept Lucia’s balcony meditation. Its trophy requirement is unconfirmed. Keep a save and do it when offered.", [28], ["meditation"]),
+      routeCard("01", "Before leaving Chapter 1", "After Down to Earth, accept Lucia’s morning meditation at Jason’s house. Take the one-time invitation while it’s available.", [28], ["meditation"]),
       story,
-      routeCard("03", "Complete the in-game 100%", "After the story, open Progress › Stats › 100% Completion. Target 300 stunts, 15 card sets, 100 WAiNK locations, 42 range golds and 70 challenges. Add 30 distinct race wins, all 42 drone trials and all 8 vaults.", [14, 17, 30], ["completion"]),
-      routeCard("04", "Finish the remaining trophies", "Check the separate side strands and one-off activities after 100%. Aim for eight qualifying stranger strands. Take Yago’s timed race when offered. Earn all 54 non-platinum trophies for Vice Got a Price!", [25, 1], ["guide", "strangers"])
+      completion,
+      routeCard("04", "Finish the remaining trophies", "Check the side strands and one-off activities after 100%. Finish eight qualifying stranger strands and clear all 54 non-platinum trophies.", [25, 1], ["guide", "strangers"])
     );
     road.replaceChildren(intro, cards);
   }
 
   function render() {
     $("tracker").hidden = view.roadmap;
-    $("roadmap").hidden = !view.roadmap;
+    $("roadmap-view").hidden = !view.roadmap;
+    $("content").classList.toggle("roadmap-active", view.roadmap);
     $("breadcrumb").textContent = view.roadmap ? "Platinum roadmap" : "Trophy tracker";
     $("tracker-link").setAttribute("aria-current", view.roadmap ? "false" : "page");
     $("roadmap-link").setAttribute("aria-current", view.roadmap ? "page" : "false");
@@ -306,6 +368,10 @@
   });
   $("unearned").addEventListener("change", event => {
     view.unearned = event.target.checked;
+    renderTracker();
+  });
+  $("grade").addEventListener("change", event => {
+    view.grade = event.target.value;
     renderTracker();
   });
   $("spoiler").addEventListener("change", event => {

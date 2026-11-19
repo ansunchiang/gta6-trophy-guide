@@ -1,5 +1,6 @@
 [
-  { "file": "1-checklist.jpg", "path": "/", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "2-silver.jpg", "path": "/", "grade": "silver", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "3-bronze.jpg", "path": "/", "grade": "bronze", "scroll": 1400, "viewport": { "width": 1280, "height": 800 } }
+  { "file": "01-tracker.jpg", "path": "/#kind=activities&t=17", "viewport": { "width": 1280, "height": 800 }, "state": "Opened directly from disk with network blocked. Master of None checked in the demo profile." },
+  { "file": "02-roadmap.jpg", "path": "/#roadmap", "viewport": { "width": 1280, "height": 850 }, "state": "Spoiler protection switched off to show the chapter milestones." },
+  { "file": "03-missables.jpg", "path": "/#kind=missable&t=28", "viewport": { "width": 1280, "height": 800 }, "state": "Missable filter with the Chapter 1 meditation guide open." },
+  { "file": "04-spoilers.jpg", "path": "/#kind=story&t=3", "viewport": { "width": 1280, "height": 800 }, "state": "Spoiler protection on. First story trophy checked in the demo profile." }
 ]

@@ -2,9 +2,13 @@ const progressStore = (() => {
   const key = "vice-ledger:ps5";
   const format = "vice-ledger:gta-vi-ps5";
   const ids = new Set(catalog.trophies.map(trophy => trophy.id));
+  const byName = new Map(catalog.trophies.map(trophy => [trophy.name, trophy.id]));
 
   function decode(text) {
     const saved = JSON.parse(text);
+    if (Array.isArray(saved) && saved.every(name => byName.has(name))) {
+      return { earned: new Set(saved.map(name => byName.get(name))), hideSpoilers: true };
+    }
     if (saved?.format !== format || saved.version !== 1 ||
         !Array.isArray(saved.earned) || !saved.earned.every(id => ids.has(id)) ||
         typeof saved.hideSpoilers !== "boolean") {
@@ -24,7 +28,7 @@ const progressStore = (() => {
 
   function read() {
     try {
-      const saved = localStorage.getItem(key);
+      const saved = localStorage.getItem(key) ?? localStorage.getItem("gta6-trophy-checklist");
       if (saved !== null) return decode(saved);
     } catch {
       return { earned: new Set(), hideSpoilers: true };

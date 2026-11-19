@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Vice Ledger | GTA VI Trophy Guide</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ffb191'/%3E%3Cpath d='M9 9h16l-2 3H7zm2 6h11l-2 3H9zm2 6h6l-2 3h-6z' fill='%23341b30'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
   <script defer src="data/catalog.js"></script>
   <script defer src="progress.js"></script>
@@ -59,11 +59,18 @@
         <section id="tracker" aria-labelledby="checklist-title">
           <div class="section-heading">
             <div><h2 id="checklist-title">Trophy checklist</h2><p id="result-count"></p></div>
-            <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only">Search trophies</span><input id="search" type="search" placeholder="Search trophies…" autocomplete="off"></label>
+            <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only">Search trophies</span><input id="search" type="search" placeholder="Search…" autocomplete="off"></label>
           </div>
           <div class="filter-bar">
             <div id="kind-filters" class="filters" role="group" aria-label="Trophy kind"></div>
-            <label class="unearned"><input type="checkbox" id="unearned"> Unearned only</label>
+            <div class="filter-options">
+              <label class="sr-only" for="grade">Trophy grade</label>
+              <select id="grade" aria-label="Trophy grade">
+                <option value="all">All grades</option><option value="platinum">Platinum</option>
+                <option value="gold">Gold</option><option value="silver">Silver</option><option value="bronze">Bronze</option>
+              </select>
+              <label class="unearned"><input type="checkbox" id="unearned"> Unearned only</label>
+            </div>
           </div>
           <div class="tracker-grid">
             <div id="trophy-list" class="trophy-list" aria-label="Trophies"></div>
@@ -71,7 +78,7 @@
           </div>
         </section>
 
-        <section id="roadmap" aria-label="Platinum roadmap" hidden></section>
+        <section id="roadmap-view" aria-label="Platinum roadmap" hidden></section>
       </div>
       <footer class="main-footer">Independent PS5 trophy guide <span aria-hidden="true">·</span> Launch edition, 19 Nov 2026</footer>
     </main>
